@@ -1,5 +1,8 @@
+import json
+
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 from simulateur.calcul import montant_max_relais, simuler
 from simulateur.fmt import eur, eur2, lire, nombre, pct
@@ -10,6 +13,7 @@ from simulateur.pdf import synthese_pdf
 st.set_page_config(page_title="Simulateur de prêt relais", layout="wide")
 st.title("Simulateur de prêt relais")
 d = Params()
+defauts = {}  # libellé du champ -> valeur par défaut affichée, pour la touche Échap
 
 
 def _reformater(key, nd):
@@ -21,6 +25,7 @@ def _reformater(key, nd):
 def champ(label, value, nd=0, key=None, max_value=None):
     """Saisie texte : accepte virgule décimale et espaces, réaffiche formaté. Valeur illisible -> défaut."""
     key = key or label
+    defauts[label] = nombre(value, nd)
     st.session_state.setdefault(key, nombre(value, nd))
     texte = st.text_input(label, key=key, on_change=_reformater, args=(key, nd))
     x = lire(texte)
@@ -62,9 +67,9 @@ with st.sidebar:
     st.header("Prêt complémentaire")
     avec_compl = st.checkbox("Financer le solde par un prêt amortissable", value=d.avec_complementaire)
     if avec_compl:
-        taux_compl = taux("Taux nominal annuel (%)", d.taux_compl, key="tc")
+        taux_compl = taux("Taux du complémentaire (%)", d.taux_compl)
         duree_compl = st.slider("Durée (ans)", 5, 30, d.duree_compl_ans)
-        assurance_compl = taux("Assurance annuelle (%)", d.assurance_compl, key="ac")
+        assurance_compl = taux("Assurance du complémentaire (%)", d.assurance_compl)
     else:
         taux_compl, duree_compl, assurance_compl = d.taux_compl, d.duree_compl_ans, d.assurance_compl
 
@@ -130,3 +135,17 @@ with st.expander("Échéancier mensuel"):
 
 st.download_button("Exporter la synthèse en PDF", synthese_pdf(p, r), "simulation_pret_relais.pdf", "application/pdf")
 st.caption(MENTIONS)
+
+# Échap dans un champ : remet la valeur par défaut (le script remplace son écouteur à chaque exécution).
+components.html(f"""<script>
+const doc = window.parent.document, defauts = {json.dumps(defauts)};
+if (window.parent.__echap) doc.removeEventListener("keydown", window.parent.__echap, true);
+window.parent.__echap = (e) => {{
+  const champ = e.target, valeur = defauts[champ.getAttribute && champ.getAttribute("aria-label")];
+  if (e.key !== "Escape" || valeur === undefined) return;
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(champ, valeur);
+  champ.dispatchEvent(new Event("input", {{bubbles: true}}));
+  champ.blur();
+}};
+doc.addEventListener("keydown", window.parent.__echap, true);
+</script>""", height=0)
