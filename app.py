@@ -2,7 +2,7 @@ import pandas as pd
 import streamlit as st
 
 from simulateur.calcul import montant_max_relais, simuler
-from simulateur.fmt import eur, eur2, pct
+from simulateur.fmt import eur, eur2, lire, nombre, pct
 from simulateur.params import (DUREE_MAX_MOIS, MENTIONS, NOTAIRE_ANCIEN, NOTAIRE_NEUF, QUOTITE_MAX,
                                QUOTITE_MIN, SEUIL_ENDETTEMENT, TYPES_RELAIS, Params)
 from simulateur.pdf import synthese_pdf
@@ -12,38 +12,51 @@ st.title("Simulateur de prêt relais")
 d = Params()
 
 
-def euros(label, value, **kw):
-    return st.number_input(label, value=float(value), min_value=0.0, step=1000.0, format="%.0f", **kw)
+def _reformater(key, nd):
+    x = lire(st.session_state[key])
+    if x is not None:
+        st.session_state[key] = nombre(x, nd)
+
+
+def champ(label, value, nd=0, key=None, max_value=None):
+    """Saisie texte : accepte virgule décimale et espaces, réaffiche formaté. Valeur illisible -> défaut."""
+    key = key or label
+    st.session_state.setdefault(key, nombre(value, nd))
+    texte = st.text_input(label, key=key, on_change=_reformater, args=(key, nd))
+    x = lire(texte)
+    if x is None:
+        st.caption(":red[Valeur illisible, valeur par défaut utilisée.]")
+        return value
+    return min(x, max_value) if max_value is not None else x
 
 
 def taux(label, value, **kw):
-    return st.number_input(label, value=value * 100, min_value=0.0, step=0.05, format="%.2f", **kw) / 100
+    return champ(label, value * 100, nd=2, **kw) / 100
 
 
 with st.sidebar:
     st.header("Bien à vendre")
-    valeur_vente = euros("Valeur estimée (€)", d.valeur_vente)
-    crd = euros("Capital restant dû (€)", d.crd)
+    valeur_vente = champ("Valeur estimée (€)", d.valeur_vente)
+    crd = champ("Capital restant dû (€)", d.crd)
     quotite = st.slider("Quotité du relais (% de la valeur)", int(QUOTITE_MIN * 100), int(QUOTITE_MAX * 100),
                         int(d.quotite * 100), 5) / 100
 
     st.header("Bien à acheter")
-    prix_achat = euros("Prix (€)", d.prix_achat)
+    prix_achat = champ("Prix (€)", d.prix_achat)
     neuf = st.radio("Type de bien", ["Ancien", "Neuf"], horizontal=True) == "Neuf"
     taux_notaire = taux("Frais de notaire (%)", NOTAIRE_NEUF if neuf else NOTAIRE_ANCIEN, key=f"notaire_{neuf}")
-    travaux = euros("Travaux (€)", d.travaux)
-    apport = euros("Apport personnel (€)", d.apport)
+    travaux = champ("Travaux (€)", d.travaux)
+    apport = champ("Apport personnel (€)", d.apport)
 
     st.header("Prêt relais")
     max_relais = montant_max_relais(Params(valeur_vente=valeur_vente, crd=crd, quotite=quotite))
-    montant_relais = euros(f"Montant (max {eur(max_relais)})", max_relais, max_value=max_relais,
+    montant_relais = champ(f"Montant (max {eur(max_relais)})", max_relais, max_value=max_relais,
                            key=f"relais_{max_relais}")
     type_relais = st.selectbox("Formule", list(TYPES_RELAIS), format_func=TYPES_RELAIS.get)
     duree_relais = st.slider("Durée (mois)", 1, DUREE_MAX_MOIS, d.duree_relais)
     taux_relais = taux("Taux nominal annuel (%)", d.taux_relais)
     assurance_relais = taux("Assurance annuelle (%)", d.assurance_relais)
-    frais_dossier = st.number_input("Frais de dossier (€)", min_value=0.0, step=50.0, format="%.0f",
-                                    value=float(round(0.005 * montant_relais)), key=f"dossier_{montant_relais}")
+    frais_dossier = champ("Frais de dossier (€)", round(0.005 * montant_relais), key=f"dossier_{montant_relais}")
     frais_garantie_pct = taux("Frais de garantie (% du montant)", d.frais_garantie_pct)
 
     st.header("Prêt complémentaire")
@@ -56,7 +69,7 @@ with st.sidebar:
         taux_compl, duree_compl, assurance_compl = d.taux_compl, d.duree_compl_ans, d.assurance_compl
 
     st.header("Contrôles (facultatif)")
-    revenus = euros("Revenus mensuels nets du foyer (€)", 0)
+    revenus = champ("Revenus mensuels nets du foyer (€)", 0)
     seuil_usure = taux("Taux d'usure prêts relais (%, 0 = pas de contrôle)", d.seuil_usure)
 
 p = Params(
