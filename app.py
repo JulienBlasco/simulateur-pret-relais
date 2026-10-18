@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
@@ -136,16 +137,6 @@ with st.expander("Échéancier mensuel"):
 st.download_button("Exporter la synthèse en PDF", synthese_pdf(p, r), "simulation_pret_relais.pdf", "application/pdf")
 st.caption(MENTIONS)
 
-# Échap dans un champ : remet la valeur par défaut (le script remplace son écouteur à chaque exécution).
-components.html(f"""<script>
-const doc = window.parent.document, defauts = {json.dumps(defauts)};
-if (window.parent.__echap) doc.removeEventListener("keydown", window.parent.__echap, true);
-window.parent.__echap = (e) => {{
-  const champ = e.target, valeur = defauts[champ.getAttribute && champ.getAttribute("aria-label")];
-  if (e.key !== "Escape" || valeur === undefined) return;
-  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(champ, valeur);
-  champ.dispatchEvent(new Event("input", {{bubbles: true}}));
-  champ.blur();
-}};
-doc.addEventListener("keydown", window.parent.__echap, true);
-</script>""", height=0)
+# Réinitialisation (Échap ou icône ↺) : script injecté, qui remplace ses écouteurs à chaque exécution.
+script = (Path(__file__).parent / "simulateur" / "reset.js").read_text().replace("__DEFAUTS__", json.dumps(defauts))
+components.html(f"<script>{script}</script>", height=0)
