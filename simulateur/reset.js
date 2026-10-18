@@ -38,7 +38,12 @@ function actualiser() {
       icone.textContent = "↺";
       icone.title = "Valeur par défaut";
       icone.style.cssText = "position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:#9aa0a6;font-size:16px;line-height:1;user-select:none";
-      icone.addEventListener("mousedown", (e) => { e.preventDefault(); reinitialiser(boite.querySelector("input")); });
+      // Le champ est retrouvé au clic (React peut remplacer l'élément <input> après la création de l'icône).
+      const libelle = champ.getAttribute("aria-label");
+      icone.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        reinitialiser(champs().find((c) => c.getAttribute("aria-label") === libelle));
+      });
       boite.style.position = "relative";
       boite.appendChild(icone);
     }
@@ -66,6 +71,8 @@ w.__resetEcoute = (e) => {
 w.__resetFormat = (e) => { if (champs().includes(e.target)) formater(e.target); };
 doc.addEventListener("keydown", w.__resetEcoute, true);
 doc.addEventListener("input", w.__resetFormat, true);
+// Les icônes laissées par une exécution précédente ont des écouteurs morts (iframe rechargée) : on les recrée.
+doc.querySelectorAll(".reset-defaut").forEach((i) => i.remove());
 let attente;
 w.__resetObs = new MutationObserver(() => { cancelAnimationFrame(attente); attente = requestAnimationFrame(actualiser); });
 w.__resetObs.observe(doc.body, { childList: true, subtree: true });
