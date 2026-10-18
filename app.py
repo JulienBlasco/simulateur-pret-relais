@@ -26,7 +26,6 @@ with st.sidebar:
     crd = euros("Capital restant dû (€)", d.crd)
     quotite = st.slider("Quotité du relais (% de la valeur)", int(QUOTITE_MIN * 100), int(QUOTITE_MAX * 100),
                         int(d.quotite * 100), 5) / 100
-    decote = taux("Décote à la vente (%)", d.decote)
 
     st.header("Bien à acheter")
     prix_achat = euros("Prix (€)", d.prix_achat)
@@ -61,7 +60,7 @@ with st.sidebar:
     seuil_usure = taux("Taux d'usure prêts relais (%, 0 = pas de contrôle)", d.seuil_usure)
 
 p = Params(
-    valeur_vente=valeur_vente, crd=crd, quotite=quotite, decote=decote,
+    valeur_vente=valeur_vente, crd=crd, quotite=quotite,
     prix_achat=prix_achat, taux_notaire=taux_notaire, travaux=travaux, apport=apport,
     type_relais=type_relais, duree_relais=duree_relais, taux_relais=taux_relais,
     assurance_relais=assurance_relais, montant_relais=montant_relais, frais_dossier=frais_dossier,

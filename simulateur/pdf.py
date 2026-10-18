@@ -12,7 +12,6 @@ def _sections(p: Params, r: dict) -> list[tuple[str, list[tuple[str, str]]]]:
         ("Hypothèses", [
             ("Valeur estimée du bien à vendre", eur(p.valeur_vente)),
             ("Capital restant dû", eur(p.crd)),
-            ("Décote à la vente", pct(p.decote, 1)),
             ("Prix du bien à acheter", eur(p.prix_achat)),
             ("Frais de notaire", pct(p.taux_notaire, 1)),
             ("Travaux", eur(p.travaux)),

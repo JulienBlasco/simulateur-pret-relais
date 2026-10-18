@@ -26,7 +26,6 @@ class Params:
     valeur_vente: float = 300_000
     crd: float = 80_000
     quotite: float = 0.70
-    decote: float = 0.0
     # Bien à acheter
     prix_achat: float = 400_000
     taux_notaire: float = NOTAIRE_ANCIEN

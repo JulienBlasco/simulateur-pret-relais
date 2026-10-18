@@ -91,7 +91,7 @@ def simuler(p: Params) -> dict:
         })
 
     solde_relais = sum(r["capital"] + (r["interets"] if p.type_relais == "differe" else 0) for r in lignes_relais)
-    vente_nette = p.valeur_vente * (1 - p.decote)
+    vente_nette = p.valeur_vente  # hypothèse : vente au prix estimé (décote < marge de la quotité)
     reste_vente = vente_nette - p.crd - solde_relais  # argent disponible après la vente
 
     interets_relais = sum(r["interets"] for r in lignes_relais)
