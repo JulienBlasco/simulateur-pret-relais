@@ -101,8 +101,8 @@ if r["reste_vente"] < 0:
     st.error(f"La vente ne couvre pas le CRD et le relais : il manque {eur(-r['reste_vente'])}.")
 if p.seuil_usure and r["taeg_relais"] > p.seuil_usure:
     st.error(f"Le TAEG ({pct(r['taeg_relais'])}) dépasse le taux d'usure renseigné ({pct(p.seuil_usure)}).")
-if r["endettement_pendant"] and r["endettement_pendant"] > SEUIL_ENDETTEMENT:
-    st.warning(f"Endettement pendant le relais : {pct(r['endettement_pendant'], 1)} (recommandation : {pct(SEUIL_ENDETTEMENT, 0)} maximum).")
+if r["endettement_apres"] and r["endettement_apres"] > SEUIL_ENDETTEMENT:
+    st.warning(f"Endettement après la vente : {pct(r['endettement_apres'], 1)} (recommandation : {pct(SEUIL_ENDETTEMENT, 0)} maximum).")
 
 left, right = st.columns(2)
 with left:

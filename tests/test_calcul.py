@@ -47,3 +47,10 @@ def test_defauts():
 def test_sans_complementaire_manque():
     r = simuler(Params(avec_complementaire=False))
     assert r["complementaire"] == 0 and r["manque"] == pytest.approx(270_000)
+
+
+def test_endettement_sur_mensualite_apres_vente():
+    r = simuler(Params(revenus=5_000))
+    assert r["endettement_apres"] == pytest.approx(r["mensualite_apres"] / 5_000)
+    assert "endettement_pendant" not in r
+    assert simuler(Params())["endettement_apres"] is None

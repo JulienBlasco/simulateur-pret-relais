@@ -111,6 +111,5 @@ def simuler(p: Params) -> dict:
         "mensualite_pendant": mens_pendant, "mensualite_apres": mens_apres,
         "remboursement_vente": solde_relais, "reste_vente": reste_vente,
         "calendrier": calendrier,
-        "endettement_pendant": mens_pendant / p.revenus if p.revenus else None,
         "endettement_apres": mens_apres / p.revenus if p.revenus else None,
     }
