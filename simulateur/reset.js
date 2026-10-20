@@ -1,13 +1,23 @@
 // Champs de saisie : espaces des milliers insérés à la frappe (non éditables), réinitialisation par Échap ou par l'icône ↺
-// (affichée dans le champ quand la valeur diffère du défaut).
-const doc = window.parent.document, defauts = __DEFAUTS__;
+// (affichée quand la valeur diffère du défaut), boutons −/+ pour les champs qui ont un pas.
+const doc = window.parent.document, defauts = __DEFAUTS__, pas = __PAS__;
 const champs = () => [...doc.querySelectorAll("input[aria-label]")].filter((c) => c.getAttribute("aria-label") in defauts);
 
-function reinitialiser(champ) {
+// Écrit une valeur comme si elle était saisie, puis valide (la perte de focus déclenche le recalcul).
+function ecrire(champ, texte) {
   champ.focus();
-  fixer(champ, defauts[champ.getAttribute("aria-label")]);
+  fixer(champ, texte);
   champ.dispatchEvent(new Event("input", { bubbles: true }));
   champ.blur();
+}
+
+const reinitialiser = (champ) => ecrire(champ, defauts[champ.getAttribute("aria-label")]);
+
+function incrementer(champ, signe) {
+  const libelle = champ.getAttribute("aria-label"), decimales = (defauts[libelle].split(",")[1] || "").length;
+  const courant = parseFloat(champ.value.replace(/\s/g, "").replace(",", ".")) || 0;
+  const [entier, dec] = Math.max(0, courant + signe * pas[libelle]).toFixed(decimales).split(".");
+  ecrire(champ, entier.replace(/\B(?=(\d{3})+$)/g, " ") + (dec ? "," + dec : ""));
 }
 
 const fixer = (champ, valeur) => Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(champ, valeur);
@@ -28,27 +38,38 @@ function formater(champ) {
   champ.setSelectionRange(pos, pos);
 }
 
+function bouton(texte, titre, action) {
+  const b = doc.createElement("span");
+  b.textContent = texte;
+  b.title = titre;
+  b.style.cssText = "cursor:pointer;color:#9aa0a6;font-size:16px;line-height:1;padding:0 3px;user-select:none";
+  b.addEventListener("mousedown", (e) => { e.preventDefault(); action(); });
+  return b;
+}
+
 function actualiser() {
   for (const champ of champs()) {
-    const boite = champ.parentElement;
-    let icone = boite.querySelector(".reset-defaut");
-    if (!icone) {
-      icone = doc.createElement("span");
+    const boite = champ.parentElement, libelle = champ.getAttribute("aria-label");
+    let outils = boite.querySelector(".outils-champ");
+    if (!outils) {
+      outils = doc.createElement("span");
+      outils.className = "outils-champ";
+      outils.style.cssText = "position:absolute;right:6px;top:50%;transform:translateY(-50%);display:flex;align-items:center";
+      // Le champ est retrouvé au clic (React peut remplacer l'élément <input> après la création des boutons).
+      const courant = () => champs().find((c) => c.getAttribute("aria-label") === libelle);
+      const icone = bouton("↺", "Valeur par défaut", () => reinitialiser(courant()));
       icone.className = "reset-defaut";
-      icone.textContent = "↺";
-      icone.title = "Valeur par défaut";
-      icone.style.cssText = "position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:#9aa0a6;font-size:16px;line-height:1;user-select:none";
-      // Le champ est retrouvé au clic (React peut remplacer l'élément <input> après la création de l'icône).
-      const libelle = champ.getAttribute("aria-label");
-      icone.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        reinitialiser(champs().find((c) => c.getAttribute("aria-label") === libelle));
-      });
+      outils.appendChild(icone);
+      if (libelle in pas) {
+        outils.appendChild(bouton("−", "Diminuer", () => incrementer(courant(), -1)));
+        outils.appendChild(bouton("+", "Augmenter", () => incrementer(courant(), 1)));
+      }
       boite.style.position = "relative";
-      boite.appendChild(icone);
+      boite.appendChild(outils);
     }
-    const modifie = champ.value !== defauts[champ.getAttribute("aria-label")];
-    icone.style.display = modifie && doc.activeElement !== champ ? "" : "none";
+    champ.style.paddingRight = libelle in pas ? "64px" : "30px";
+    outils.style.display = doc.activeElement === champ ? "none" : "flex";
+    outils.querySelector(".reset-defaut").style.display = champ.value !== defauts[libelle] ? "" : "none";
   }
 }
 
@@ -71,8 +92,8 @@ w.__resetEcoute = (e) => {
 w.__resetFormat = (e) => { if (champs().includes(e.target)) formater(e.target); };
 doc.addEventListener("keydown", w.__resetEcoute, true);
 doc.addEventListener("input", w.__resetFormat, true);
-// Les icônes laissées par une exécution précédente ont des écouteurs morts (iframe rechargée) : on les recrée.
-doc.querySelectorAll(".reset-defaut").forEach((i) => i.remove());
+// Les boutons laissés par une exécution précédente ont des écouteurs morts (iframe rechargée) : on les recrée.
+doc.querySelectorAll(".outils-champ").forEach((i) => i.remove());
 let attente;
 w.__resetObs = new MutationObserver(() => { cancelAnimationFrame(attente); attente = requestAnimationFrame(actualiser); });
 w.__resetObs.observe(doc.body, { childList: true, subtree: true });
