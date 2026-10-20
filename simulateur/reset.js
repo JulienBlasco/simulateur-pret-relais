@@ -1,6 +1,13 @@
 // Champs de saisie : espaces des milliers insérés à la frappe (non éditables), réinitialisation par Échap ou par l'icône ↺
 // (affichée quand la valeur diffère du défaut), boutons −/+ pour les champs qui ont un pas.
 const doc = window.parent.document, defauts = __DEFAUTS__, pas = __PAS__;
+// L'indication « Press Enter to apply » de Streamlit gêne et n'est pas utile (la valeur est aussi prise en compte au clic ailleurs).
+if (!doc.getElementById("style-champs")) {
+  const style = doc.createElement("style");
+  style.id = "style-champs";
+  style.textContent = '[data-testid="InputInstructions"] { display: none; }';
+  doc.head.appendChild(style);
+}
 const champs = () => [...doc.querySelectorAll("input[aria-label]")].filter((c) => c.getAttribute("aria-label") in defauts);
 
 // Écrit une valeur comme si elle était saisie, puis valide (la perte de focus déclenche le recalcul).
@@ -50,26 +57,32 @@ function bouton(texte, titre, action) {
 function actualiser() {
   for (const champ of champs()) {
     const boite = champ.parentElement, libelle = champ.getAttribute("aria-label");
-    let outils = boite.querySelector(".outils-champ");
-    if (!outils) {
+    // Le champ est retrouvé au clic (React peut remplacer l'élément <input> après la création des boutons).
+    const courant = () => champs().find((c) => c.getAttribute("aria-label") === libelle);
+    const conteneur = boite.parentElement;
+    boite.style.width = "calc(100% - 26px)"; // laisse la place de ↺, placé dans le conteneur car la boîte du champ coupe ce qui dépasse
+    let outils = boite.querySelector(".outils-champ"), icone = conteneur.querySelector(".reset-defaut");
+    if (!icone) {
+      boite.style.position = "relative";
+      conteneur.style.position = "relative";
+      // ↺ est hors du champ, à droite, pour ne pas se confondre avec −/+.
+      icone = bouton("↺", "Valeur par défaut", () => reinitialiser(courant()));
+      icone.className = "reset-defaut";
+      icone.style.position = "absolute";
+      icone.style.cssText += ";right:0;z-index:10;top:50%;transform:translateY(-50%)";
+      conteneur.appendChild(icone);
+    }
+    if (!outils && libelle in pas) {
       outils = doc.createElement("span");
       outils.className = "outils-champ";
       outils.style.cssText = "position:absolute;right:6px;top:50%;transform:translateY(-50%);display:flex;align-items:center";
-      // Le champ est retrouvé au clic (React peut remplacer l'élément <input> après la création des boutons).
-      const courant = () => champs().find((c) => c.getAttribute("aria-label") === libelle);
-      const icone = bouton("↺", "Valeur par défaut", () => reinitialiser(courant()));
-      icone.className = "reset-defaut";
-      outils.appendChild(icone);
-      if (libelle in pas) {
-        outils.appendChild(bouton("−", "Diminuer", () => incrementer(courant(), -1)));
-        outils.appendChild(bouton("+", "Augmenter", () => incrementer(courant(), 1)));
-      }
-      boite.style.position = "relative";
+      outils.appendChild(bouton("−", "Diminuer", () => incrementer(courant(), -1)));
+      outils.appendChild(bouton("+", "Augmenter", () => incrementer(courant(), 1)));
       boite.appendChild(outils);
     }
-    champ.style.paddingRight = libelle in pas ? "64px" : "30px";
-    outils.style.display = doc.activeElement === champ ? "none" : "flex";
-    outils.querySelector(".reset-defaut").style.display = champ.value !== defauts[libelle] ? "" : "none";
+    champ.style.paddingRight = outils ? "44px" : "12px";
+    if (outils) outils.style.display = doc.activeElement === champ ? "none" : "flex";
+    icone.style.display = champ.value !== defauts[libelle] ? "" : "none";
   }
 }
 
@@ -93,7 +106,7 @@ w.__resetFormat = (e) => { if (champs().includes(e.target)) formater(e.target); 
 doc.addEventListener("keydown", w.__resetEcoute, true);
 doc.addEventListener("input", w.__resetFormat, true);
 // Les boutons laissés par une exécution précédente ont des écouteurs morts (iframe rechargée) : on les recrée.
-doc.querySelectorAll(".outils-champ").forEach((i) => i.remove());
+doc.querySelectorAll(".outils-champ, .reset-defaut").forEach((i) => i.remove());
 let attente;
 w.__resetObs = new MutationObserver(() => { cancelAnimationFrame(attente); attente = requestAnimationFrame(actualiser); });
 w.__resetObs.observe(doc.body, { childList: true, subtree: true });
